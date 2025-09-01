@@ -1,0 +1,597 @@
+diff --git a/app.properties b/app.properties
+index 1cb3d661..71985abc 100644
+--- a/app.properties
++++ b/app.properties
+@@ -46,8 +46,8 @@ jre.major: 8
+ jre.build: 201
+ 
+ # Minimum System Version
+-jvm.version: 11
+-mac.version: 10.10
++jvm.version: 1.8
++mac.version: 10.8
+ 
+ # Package Information
+ package.name: filebot
+@@ -90,36 +90,12 @@ java.application.options: -Dunixfs=false \
+                           -DuseCreationDate=false \
+                           -Djava.net.useSystemProxies=true \
+                           -Djna.nosys=true \
+-                          -Djna.nounpack=true \
+-                          --illegal-access=permit \
+-                          --add-opens=java.base/java.lang=ALL-UNNAMED \
+-                          --add-opens=java.base/java.lang.reflect=ALL-UNNAMED \
+-                          --add-opens=java.base/java.lang.invoke=ALL-UNNAMED \
+-                          --add-opens=java.base/java.util=ALL-UNNAMED \
+-                          --add-opens=java.base/java.util.function=ALL-UNNAMED \
+-                          --add-opens=java.base/java.util.regex=ALL-UNNAMED \
+-                          --add-opens=java.base/java.net=ALL-UNNAMED \
+-                          --add-opens=java.base/java.io=ALL-UNNAMED \
+-                          --add-opens=java.base/java.nio.file=ALL-UNNAMED \
+-                          --add-opens=java.base/java.nio.file.attribute=ALL-UNNAMED \
+-                          --add-opens=java.base/java.nio.channels=ALL-UNNAMED \
+-                          --add-opens=java.base/java.nio.charset=ALL-UNNAMED \
+-                          --add-opens=java.base/java.time=ALL-UNNAMED \
+-                          --add-opens=java.base/java.time.chrono=ALL-UNNAMED \
+-                          --add-opens=java.base/java.util.concurrent=ALL-UNNAMED \
+-                          --add-opens=java.logging/java.util.logging=ALL-UNNAMED \
+-                          --add-opens=java.desktop/java.awt=ALL-UNNAMED \
+-                          --add-opens=java.desktop/sun.awt=ALL-UNNAMED \
+-                          --add-opens=java.desktop/sun.swing=ALL-UNNAMED \
+-                          --add-opens=java.desktop/javax.swing.text.html=ALL-UNNAMED \
+-                          --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED
++                          -Djna.nounpack=true
+ 
+ 
+ # Default Windows Java Options
+ windows.application.options: -Dapplication.dir="%APPDATA%\\FileBot" \
+                              -Djava.io.tmpdir="%APPDATA%\\FileBot\\tmp" \
+-                             --module-path "%EXEDIR%\\jre\\ext\\modules\\lib" \
+-                             --add-modules ALL-MODULE-PATH \
+                              -Dnet.filebot.AcoustID.fpcalc="%EXEDIR%\\lib\\fpcalc.exe" \
+                              -Djna.boot.library.path="%EXEDIR%\\lib" \
+                              -Djna.library.path="%EXEDIR%\\lib" \
+diff --git a/build.xml b/build.xml
+index f6feed76..f5d79a18 100644
+--- a/build.xml
++++ b/build.xml
+@@ -167,7 +167,7 @@
+ 
+ 	<target name="jar" depends="revision">
+ 		<!-- select jar dependencies -->
+-		<fileset id="jar.classpath" dir="${dir.lib}" includesfile="${dir.lib}/jar.includes" />
++		<fileset id="jar.classpath" dir="${dir.lib}" includesfile="${dir.lib}/jar.jdk8.includes" />
+ 
+ 		<!-- rebuild each dependency jar with zero compression and remove signatures -->
+ 		<groovy src="${dir.lib}/jar.groovy" />
+@@ -182,10 +182,8 @@
+ 		</manifestclasspath>
+ 
+ 		<!-- compile -->
+-		<javac srcdir="${dir.source}" destdir="${dir.build}" release="${jvm.version}" encoding="utf-8" debug="yes" includeAntRuntime="no" excludesfile="${dir.lib}/src.excludes">
++		<javac srcdir="${dir.source}" destdir="${dir.build}" target="${jvm.version}" source="${jvm.version}" encoding="utf-8" debug="yes" includeAntRuntime="no" excludesfile="${dir.lib}/src.excludes">
+ 			<classpath refid="jar.classpath" />
+-			<modulepath path="${jfx.path}" />
+-			<compilerarg line="--add-modules ALL-MODULE-PATH" />
+ 		</javac>
+ 
+ 		<!-- copy resources -->
+@@ -215,7 +213,7 @@
+ 
+ 
+ 	<target name="appx" depends="revision" description="Build Windows 10 package">
+-		<property name="appx.arch" value="x64" />
++		<property name="appx.arch" value="x86" />
+ 
+ 		<property name="dir.staging" location="${dir.dist}/appx/${appx.arch}" />
+ 
+@@ -256,9 +254,9 @@
+ 
+ 
+ 	<target name="msi" depends="revision" description="Build Windows Installer package">
+-		<property name="msi.package.platform" value="x64" />
+-		<property name="msi.directory.id" value="ProgramFiles64Folder" />
+-		<property name="msi.component.win64" value="yes" />
++		<property name="msi.package.platform" value="x86" />
++		<property name="msi.directory.id" value="ProgramFilesFolder" />
++		<property name="msi.component.win64" value="no" />
+ 
+ 		<property name="dir.staging" location="${dir.dist}/msi/${msi.package.platform}" />
+ 
+@@ -492,7 +490,7 @@
+ 			<fileset dir="${dir.installer}/deb-universal" />
+ 		</copy-replace>
+ 
+-		<jdeb destfile="${dir.dist}/${application.name}_${application.version}_universal.deb" control="${dir.staging}/control" compression="${tar.compression}" verbose="true">
++		<jdeb destfile="${dir.dist}/${application.name}_${application.version}_universal-jdk8.deb" control="${dir.staging}/control" compression="${tar.compression}" verbose="true">
+ 			<tarfileset prefix="/usr/share/filebot/bin" dir="${dir.staging}" includes="*.sh" filemode="755" />
+ 			<tarfileset prefix="/usr/share/filebot/jar" dir="${dir.dist}/lib" excludes="${deb.jna.depends}" />
+ 
+@@ -534,8 +532,8 @@
+ 			<fileset dir="${dir.installer}/tar" includes="*.sh" />
+ 		</copy-replace>
+ 
+-		<tar destfile="${dir.dist}/${release}-portable.tar.xz" compression="${tar.compression}" longfile="posix" encoding="utf-8">
+-			<tarfileset dir="${dir.staging}" includes="*.sh" filemode="755" />
++		<tar destfile="${dir.dist}/${release}-portable-jdk8.tar.xz" compression="${tar.compression}" longfile="posix" encoding="utf-8">
++			<tarfileset dir="${dir.staging}" includes="filebot.sh" filemode="755" />
+ 			<tarfileset prefix="jar" dir="${dir.dist}/lib" />
+ 
+ 			<!-- include native libraries for all supported platforms -->
+diff --git a/installer/deb-universal/control/control b/installer/deb-universal/control/control
+index 29e9f0d8..de9da74d 100644
+--- a/installer/deb-universal/control/control
++++ b/installer/deb-universal/control/control
+@@ -7,6 +7,6 @@ Description: @{package.synopsis}
+ Homepage: @{package.homepage}
+ Section: utils
+ Priority: extra
+-Depends: openjdk-@{jvm.version}-jre, libjna-java
++Depends: openjdk-8-jre, libjna-java
+ Recommends: openjfx, mediainfo, libchromaprint-tools, p7zip-full, unrar
+ Enhances: nautilus-actions
+diff --git a/installer/deb-universal/filebot.sh b/installer/deb-universal/filebot.sh
+index 41e87444..05422081 100644
+--- a/installer/deb-universal/filebot.sh
++++ b/installer/deb-universal/filebot.sh
+@@ -11,6 +11,5 @@ APP_DATA="$HOME/.filebot"
+ 
+ # select libjnidispatch.system.so from $(uname -m)-linux-gnu folder
+ LIBRARY_PATH=$(echo /usr/lib/*-linux-gnu*/jni | tr ' ' ':')
+-MODULE_PATH=/usr/share/openjfx/lib
+ 
+-java -Dapplication.deployment=deb --module-path "$MODULE_PATH" --add-modules ALL-MODULE-PATH -Djna.boot.library.name=jnidispatch.system -Dnet.filebot.archive.extractor=ShellExecutables @{java.application.options} @{linux.application.options} @{linux.desktop.application.options} $JAVA_OPTS $FILEBOT_OPTS -jar "$FILEBOT_HOME/jar/filebot.jar" "$@"
++java -Dapplication.deployment=deb -Djna.boot.library.name=jnidispatch.system -Dnet.filebot.archive.extractor=ShellExecutables @{java.application.options} @{linux.application.options} @{linux.desktop.application.options} $JAVA_OPTS $FILEBOT_OPTS -jar "$FILEBOT_HOME/jar/filebot.jar" "$@"
+diff --git a/source/net/filebot/Logging.java b/source/net/filebot/Logging.java
+index da5c7a68..a1c25903 100644
+--- a/source/net/filebot/Logging.java
++++ b/source/net/filebot/Logging.java
+@@ -13,6 +13,7 @@ import java.io.StringWriter;
+ import java.lang.reflect.InvocationTargetException;
+ import java.nio.channels.FileChannel;
+ import java.nio.file.StandardOpenOption;
++import java.time.Instant;
+ import java.time.ZoneId;
+ import java.time.format.DateTimeFormatter;
+ import java.util.Locale;
+@@ -156,7 +157,7 @@ public final class Logging {
+ 
+ 			// ADD TIMESTAMP
+ 			if (dateTimeFormatter != null) {
+-				dateTimeFormatter.formatTo(record.getInstant(), buffer);
++				dateTimeFormatter.formatTo(Instant.ofEpochMilli(record.getMillis()), buffer);
+ 			}
+ 
+ 			// BEGIN COLOR
+diff --git a/source/net/filebot/ResourceManager.java b/source/net/filebot/ResourceManager.java
+index 4aec2ab8..eb200e57 100644
+--- a/source/net/filebot/ResourceManager.java
++++ b/source/net/filebot/ResourceManager.java
+@@ -5,7 +5,6 @@ import static java.util.stream.Collectors.*;
+ 
+ import java.awt.GraphicsEnvironment;
+ import java.awt.Image;
+-import java.awt.image.BaseMultiResolutionImage;
+ import java.awt.image.BufferedImage;
+ import java.net.URL;
+ import java.util.ArrayList;
+@@ -62,58 +61,14 @@ public final class ResourceManager {
+ 
+ 	private static Image getMultiResolutionImage(URL[] resource) {
+ 		try {
+-			// Load multi-resolution images only if necessary
+-			if (PRIMARY_SCALE_FACTOR == 1) {
+-				return ImageIO.read(resource[0]);
+-			}
+-
+-			List<BufferedImage> image = new ArrayList<BufferedImage>(resource.length);
+-			for (URL r : resource) {
+-				image.add(ImageIO.read(r));
+-			}
+-
+-			// Windows 10: use down-scaled @2x image for non-integer scale factors 1.25 / 1.5 / 1.75
+-			if (PRIMARY_SCALE_FACTOR > 1 && PRIMARY_SCALE_FACTOR < 2 && image.size() > 1) {
+-				image.add(1, scale(PRIMARY_SCALE_FACTOR / 2, image.get(1)));
+-			} else if (PRIMARY_SCALE_FACTOR > 2) {
+-				image.add(scale(PRIMARY_SCALE_FACTOR / 2, image.get(1)));
+-			}
+-
+-			return new BaseMultiResolutionImage(image.toArray(Image[]::new));
++			return ImageIO.read(resource[0]);
+ 		} catch (Exception e) {
+ 			throw new RuntimeException(e);
+ 		}
+ 	}
+ 
+ 	public static Image getMultiResolutionImage(BufferedImage baseImage, double baseScale) {
+-		if (PRIMARY_SCALE_FACTOR == 1 && baseScale == 1) {
+-			return baseImage;
+-		}
+-
+-		List<BufferedImage> image = new ArrayList<BufferedImage>(3);
+-		image.add(baseImage);
+-
+-		// use down-scaled @2x image as @1x base image
+-		if (baseScale > 1) {
+-			image.add(0, scale(1 / baseScale, baseImage));
+-		}
+-
+-		// Windows 10: use down-scaled @2x image for non-integer scale factors 1.25 / 1.5 / 1.75
+-		if (PRIMARY_SCALE_FACTOR > 1 && PRIMARY_SCALE_FACTOR < baseScale) {
+-			image.add(1, scale(PRIMARY_SCALE_FACTOR / baseScale, baseImage));
+-		} else if (PRIMARY_SCALE_FACTOR > baseScale) {
+-			image.add(scale(PRIMARY_SCALE_FACTOR / baseScale, baseImage));
+-		}
+-
+-		return new BaseMultiResolutionImage(image.toArray(Image[]::new));
+-	}
+-
+-	private static final double PRIMARY_SCALE_FACTOR = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration().getDefaultTransform().getScaleX();
+-
+-	private static BufferedImage scale(double scale, BufferedImage image) {
+-		int w = (int) (scale * image.getWidth());
+-		int h = (int) (scale * image.getHeight());
+-		return Scalr.resize(image, Method.ULTRA_QUALITY, Mode.FIT_TO_WIDTH, w, h, Scalr.OP_ANTIALIAS);
++		return baseImage;
+ 	}
+ 
+ }
+diff --git a/source/net/filebot/ThumbnailServices.java b/source/net/filebot/ThumbnailServices.java
+index f06fabdd..d76f4e1d 100644
+--- a/source/net/filebot/ThumbnailServices.java
++++ b/source/net/filebot/ThumbnailServices.java
+@@ -10,10 +10,6 @@ import java.awt.image.BufferedImage;
+ import java.io.ByteArrayInputStream;
+ import java.net.URI;
+ import java.net.URL;
+-import java.net.http.HttpClient;
+-import java.net.http.HttpRequest;
+-import java.net.http.HttpResponse;
+-import java.net.http.HttpResponse.BodyHandlers;
+ import java.nio.ByteBuffer;
+ import java.util.HashMap;
+ import java.util.List;
+@@ -62,43 +58,15 @@ public enum ThumbnailServices implements ThumbnailProvider {
+ 
+ 	private final Resource<Set<Integer>> index = Resource.lazy(this::getIndex);
+ 
+-	// shared HTTP Client instance for all thumbnail requests
+-	private static final Resource<HttpClient> http = Resource.lazy(HttpClient::newHttpClient);
+-
+ 	public byte[][] getThumbnails(int[] ids, ResolutionVariant variant) throws Exception {
+ 		Cache cache = getCache(variant);
+ 		byte[][] response = new byte[ids.length][];
+ 
+ 		synchronized (index) {
+ 			// check cache
+-			for (int i = 0; i < response.length; i++) {
+-				response[i] = (byte[]) cache.get(ids[i]);
+-			}
+-
+-			// create if necessary
+-			CompletableFuture<HttpResponse<byte[]>>[] request = new CompletableFuture[ids.length];
+-
+ 			for (int i = 0; i < response.length; i++) {
+ 				if (response[i] == null && index.get().contains(ids[i])) {
+-					String resource = getThumbnailResource(ids[i], variant);
+-					request[i] = http.get().sendAsync(HttpRequest.newBuilder(URI.create(resource)).build(), BodyHandlers.ofByteArray());
+-
+-					debug.fine(format("Request %s", resource));
+-				}
+-			}
+-
+-			for (int i = 0; i < response.length; i++) {
+-				if (request[i] != null) {
+-					try {
+-						HttpResponse<byte[]> r = request[i].get();
+-
+-						response[i] = r.statusCode() == 200 ? r.body() : new byte[0];
+-						cache.put(ids[i], response[i]);
+-
+-						debug.finest(format("Received %,d bytes (%d %s)", r.body().length, r.statusCode(), r.uri()));
+-					} catch (Exception e) {
+-						debug.warning(e::toString);
+-					}
++					response[i] = cache.bytes(ids[i], id -> new URL(getThumbnailResource(id, ResolutionVariant.NORMAL))).expire(Cache.ONE_MONTH).get();
+ 				}
+ 			}
+ 
+diff --git a/source/net/filebot/UserFiles.java b/source/net/filebot/UserFiles.java
+index bb0f65de..25b687ab 100644
+--- a/source/net/filebot/UserFiles.java
++++ b/source/net/filebot/UserFiles.java
+@@ -2,7 +2,6 @@ package net.filebot;
+ 
+ import static java.util.Arrays.*;
+ import static java.util.Collections.*;
+-import static java.util.stream.Collectors.*;
+ import static net.filebot.Logging.*;
+ import static net.filebot.Settings.*;
+ import static net.filebot.similarity.Normalization.*;
+@@ -16,7 +15,6 @@ import java.awt.event.ActionEvent;
+ import java.io.File;
+ import java.io.IOException;
+ import java.util.Collection;
+-import java.util.LinkedHashMap;
+ import java.util.List;
+ import java.util.concurrent.Callable;
+ import java.util.concurrent.FutureTask;
+@@ -24,6 +22,8 @@ import java.util.logging.Level;
+ 
+ import javax.swing.JFileChooser;
+ 
++import com.sun.jna.platform.FileUtils;
++
+ import net.filebot.platform.mac.MacAppUtilities;
+ import net.filebot.util.FileUtilities;
+ import net.filebot.util.FileUtilities.ExtensionFileFilter;
+@@ -32,12 +32,10 @@ public class UserFiles {
+ 
+ 	public static void trash(File file) throws IOException {
+ 		// use system trash if possible
+-		if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.MOVE_TO_TRASH)) {
++		if (Desktop.isDesktopSupported() && FileUtils.getInstance().hasTrash()) {
+ 			try {
+-				if (Desktop.getDesktop().moveToTrash(file)) {
+-					return;
+-				}
+-				debug.log(Level.WARNING, message("Failed to move file to trash", file));
++				FileUtils.getInstance().moveToTrash(new File[] { file });
++				return;
+ 			} catch (Exception e) {
+ 				debug.log(Level.WARNING, e::toString);
+ 			}
+@@ -50,18 +48,6 @@ public class UserFiles {
+ 	}
+ 
+ 	public static void revealFiles(Collection<File> files) {
+-		// try to reveal file in folder
+-		if (Desktop.getDesktop().isSupported(Desktop.Action.BROWSE_FILE_DIR)) {
+-			files.stream().collect(groupingBy(File::getParentFile, LinkedHashMap::new, toList())).forEach((parent, children) -> {
+-				try {
+-					Desktop.getDesktop().browseFileDirectory(children.get(children.size() - 1));
+-				} catch (Exception e) {
+-					debug.log(Level.WARNING, e::toString);
+-				}
+-			});
+-			return;
+-		}
+-
+ 		// if we can't reveal the file in folder, just reveal the parent folder
+ 		files.stream().map(it -> it.getParentFile()).distinct().forEach(it -> {
+ 			try {
+diff --git a/source/net/filebot/hash/HashType.java b/source/net/filebot/hash/HashType.java
+index 9ceea367..236b06f9 100644
+--- a/source/net/filebot/hash/HashType.java
++++ b/source/net/filebot/hash/HashType.java
+@@ -91,30 +91,6 @@ public enum HashType {
+ 		public String toString() {
+ 			return "SHA2";
+ 		}
+-	},
+-
+-	SHA3_384 {
+-
+-		@Override
+-		public Hash newHash() {
+-			return new MessageDigestHash("SHA3-384");
+-		}
+-
+-		@Override
+-		public VerificationFormat getFormat() {
+-			// e.g 1a02a7c1e9ac91346d08829d5037b240f42ded07 ?SHA3-384*folder/file.txt
+-			return new VerificationFormat("SHA3-384");
+-		}
+-
+-		@Override
+-		public ExtensionFileFilter getFilter() {
+-			return MediaTypes.getTypeFilter("verification/sha3sum");
+-		}
+-
+-		@Override
+-		public String toString() {
+-			return "SHA3";
+-		}
+ 	};
+ 
+ 	public abstract Hash newHash();
+diff --git a/source/net/filebot/mediainfo/MediaInfo.java b/source/net/filebot/mediainfo/MediaInfo.java
+index aeb56aeb..e02246a5 100644
+--- a/source/net/filebot/mediainfo/MediaInfo.java
++++ b/source/net/filebot/mediainfo/MediaInfo.java
+@@ -8,7 +8,6 @@ import static net.filebot.util.RegularExpressions.*;
+ import java.io.File;
+ import java.io.IOException;
+ import java.io.RandomAccessFile;
+-import java.lang.ref.Cleaner;
+ import java.time.Duration;
+ import java.time.Instant;
+ import java.time.ZonedDateTime;
+@@ -30,12 +29,10 @@ import net.filebot.media.MediaCharacteristics;
+ public class MediaInfo implements MediaCharacteristics {
+ 
+ 	private Pointer handle;
+-	private Cleaner.Cleanable cleanable;
+ 
+ 	public MediaInfo() {
+ 		try {
+ 			handle = MediaInfoLibrary.INSTANCE.New();
+-			cleanable = cleaner.register(this, new Finalizer(handle));
+ 		} catch (LinkageError e) {
+ 			throw new MediaInfoException(e);
+ 		}
+@@ -256,7 +253,22 @@ public class MediaInfo implements MediaCharacteristics {
+ 
+ 	@Override
+ 	public synchronized void close() {
+-		cleanable.clean();
++		MediaInfoLibrary.INSTANCE.Close(handle);
++	}
++
++	public synchronized void dispose() {
++		if (handle == null) {
++			return;
++		}
++
++		// delete handle
++		MediaInfoLibrary.INSTANCE.Delete(handle);
++		handle = null;
++	}
++
++	@Override
++	protected void finalize() {
++		dispose();
+ 	}
+ 
+ 	public enum StreamKind {
+@@ -341,26 +353,6 @@ public class MediaInfo implements MediaCharacteristics {
+ 		}
+ 	}
+ 
+-	/**
+-	 * Use {@link Cleaner} instead of Object.finalize()
+-	 */
+-	private static final Cleaner cleaner = Cleaner.create();
+-
+-	private static class Finalizer implements Runnable {
+-
+-		private Pointer handle;
+-
+-		public Finalizer(Pointer handle) {
+-			this.handle = handle;
+-		}
+-
+-		@Override
+-		public void run() {
+-			MediaInfoLibrary.INSTANCE.Close(handle);
+-			MediaInfoLibrary.INSTANCE.Delete(handle);
+-		}
+-	}
+-
+ 	private static final int BUFFER_SIZE = 64 * 1024;
+ 
+ }
+diff --git a/source/net/filebot/platform/mac/DropToUnlock.java b/source/net/filebot/platform/mac/DropToUnlock.java
+index 21b83255..aec903d3 100644
+--- a/source/net/filebot/platform/mac/DropToUnlock.java
++++ b/source/net/filebot/platform/mac/DropToUnlock.java
+@@ -13,7 +13,6 @@ import java.awt.BasicStroke;
+ import java.awt.Color;
+ import java.awt.Component;
+ import java.awt.Cursor;
+-import java.awt.Desktop;
+ import java.awt.Dialog.ModalExclusionType;
+ import java.awt.Dimension;
+ import java.awt.Font;
+@@ -162,7 +161,6 @@ public class DropToUnlock extends JList<File> {
+ 					if (model.stream().allMatch(f -> !isLockedFolder(f))) {
+ 						dialogCancelled.set(false);
+ 						invokeLater(750, () -> dialog.setVisible(false)); // auto-close unlock dialog once all folders have been unlocked
+-						invokeLater(1000, () -> Desktop.getDesktop().requestForeground(true)); // bring application to foreground now that folders have been unlocked
+ 					} else {
+ 						model.stream().filter(f -> isLockedFolder(f)).findFirst().ifPresent(f -> {
+ 							invokeLater(250, () -> {
+diff --git a/source/net/filebot/platform/mac/MacAppUtilities.java b/source/net/filebot/platform/mac/MacAppUtilities.java
+index b2883e29..55576632 100644
+--- a/source/net/filebot/platform/mac/MacAppUtilities.java
++++ b/source/net/filebot/platform/mac/MacAppUtilities.java
+@@ -7,7 +7,6 @@ import java.awt.EventQueue;
+ import java.awt.SecondaryLoop;
+ import java.awt.Toolkit;
+ import java.awt.Window;
+-import java.awt.desktop.QuitStrategy;
+ import java.io.File;
+ import java.util.ArrayList;
+ import java.util.Collection;
+@@ -98,20 +97,6 @@ public class MacAppUtilities {
+ 		// improved UI defaults
+ 		UIManager.put("TitledBorder.border", UIManager.getBorder("InsetBorder.aquaVariant"));
+ 
+-		// make sure Application Quit Events get forwarded to normal Window Listeners
+-		Desktop.getDesktop().setQuitStrategy(QuitStrategy.CLOSE_ALL_WINDOWS);
+-
+-		// set global menu bar
+-		Desktop.getDesktop().setDefaultMenuBar(appMenuBar);
+-
+-		// set open file handler
+-		Desktop.getDesktop().setOpenFileHandler(evt -> {
+-			List<File> files = evt.getFiles();
+-			if (files.size() > 0) {
+-				openFileHandler.accept(files);
+-			}
+-		});
+-
+ 		// add workflow service menu
+ 		initializeWorkflowServiceMenu(appMenuBar.getMenu(0));
+ 	}
+diff --git a/source/net/filebot/platform/mac/xattr/XAttrUtil.java b/source/net/filebot/platform/mac/xattr/XAttrUtil.java
+index 53eb62d9..ad02288e 100644
+--- a/source/net/filebot/platform/mac/xattr/XAttrUtil.java
++++ b/source/net/filebot/platform/mac/xattr/XAttrUtil.java
+@@ -63,7 +63,7 @@ public class XAttrUtil {
+ 
+ 	protected static String decodeString(ByteBuffer bb) {
+ 		// handle null-terminated String values gracefully
+-		return UTF_8.decode(bb).codePoints().takeWhile(c -> c != 0).collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append).toString();
++		return UTF_8.decode(bb).codePoints().filter(c -> c != 0).collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append).toString();
+ 	}
+ 
+ 	protected static List<String> decodeStringSequence(ByteBuffer bb) {
+diff --git a/source/net/filebot/ui/MainFrame.java b/source/net/filebot/ui/MainFrame.java
+index 50f52bae..1e86a4ff 100644
+--- a/source/net/filebot/ui/MainFrame.java
++++ b/source/net/filebot/ui/MainFrame.java
+@@ -226,11 +226,7 @@ public class MainFrame extends JFrame {
+ 					selectEnabled = true;
+ 
+ 					// bring window to front when drag-and-drop operation is in progress
+-					if (Desktop.getDesktop().isSupported(Desktop.Action.APP_REQUEST_FOREGROUND)) {
+-						Desktop.getDesktop().requestForeground(true);
+-					} else {
+-						SwingUtilities.getWindowAncestor(((DropTarget) dtde.getSource()).getComponent()).toFront();
+-					}
++					SwingUtilities.getWindowAncestor(((DropTarget) dtde.getSource()).getComponent()).toFront();
+ 				});
+ 			}
+ 
+diff --git a/source/net/filebot/ui/rename/CharacterHighlightPainter.java b/source/net/filebot/ui/rename/CharacterHighlightPainter.java
+index ffae21d8..414e9c0d 100644
+--- a/source/net/filebot/ui/rename/CharacterHighlightPainter.java
++++ b/source/net/filebot/ui/rename/CharacterHighlightPainter.java
+@@ -15,7 +15,6 @@ import javax.swing.plaf.TextUI;
+ import javax.swing.text.BadLocationException;
+ import javax.swing.text.Highlighter;
+ import javax.swing.text.JTextComponent;
+-import javax.swing.text.Position.Bias;
+ 
+ import net.filebot.util.ui.GradientStyle;
+ 
+@@ -36,8 +35,8 @@ class CharacterHighlightPainter implements Highlighter.HighlightPainter {
+ 		try {
+ 			// determine locations
+ 			TextUI mapper = c.getUI();
+-			Rectangle2D p1 = mapper.modelToView2D(c, offset1, Bias.Backward);
+-			Rectangle2D p2 = mapper.modelToView2D(c, offset2, Bias.Backward);
++			Rectangle2D p1 = mapper.modelToView(c, offset1);
++			Rectangle2D p2 = mapper.modelToView(c, offset2);
+ 
+ 			Rectangle2D r = p1.createUnion(p2);
+ 			double w = r.getWidth() + 1;
+diff --git a/source/net/filebot/util/ui/SwingUI.java b/source/net/filebot/util/ui/SwingUI.java
+index 9b40aeac..acb210fe 100644
+--- a/source/net/filebot/util/ui/SwingUI.java
++++ b/source/net/filebot/util/ui/SwingUI.java
+@@ -416,11 +416,9 @@ public final class SwingUI {
+ 					Desktop.getDesktop().open(file);
+ 					break;
+ 				case REVEAL:
+-					Desktop.getDesktop().browseFileDirectory(file);
+-					break;
++					throw new UnsupportedOperationException();
+ 				case TRASH:
+-					Desktop.getDesktop().moveToTrash(file);
+-					break;
++					throw new UnsupportedOperationException();
+ 				}
+ 			} catch (Exception e) {
+ 				log.log(Level.SEVERE, e, cause(verb, e));
