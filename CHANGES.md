@@ -1,4 +1,8 @@
-Next Release (4.8.6)
+FileBot 5.0
+=============
+* Modernised Code using LLMs
+
+FileBot 4.8.6
 ====================
 * Enhanced `Selection Dialog` with thumbnails and tooltips
 * Enhanced `Conflict Dialog` with detailed explanations
