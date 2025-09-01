@@ -1,5 +1,3 @@
-# FileBot
-
 FileBot 5.0
 =============
 
