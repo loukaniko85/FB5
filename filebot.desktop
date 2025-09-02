@@ -1,0 +1,31 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=FileBot
+Name[en]=FileBot
+Comment=The Ultimate TV and Movie Renamer
+Comment[en]=The Ultimate TV and Movie Renamer
+GenericName=Media File Renamer
+GenericName[en]=Media File Renamer
+Keywords=media;rename;organize;tv;movie;anime;subtitles
+Keywords[en]=media;rename;organize;tv;movie;anime;subtitles
+Exec=/usr/bin/filebot %F
+Icon=filebot
+Terminal=false
+StartupNotify=true
+MimeType=video/*;audio/*;inode/directory;
+Categories=AudioVideo;Video;Utility;FileTools;
+StartupWMClass=FileBot
+Actions=rename;organize;subtitles;
+
+[Desktop Action rename]
+Name=Rename Files
+Exec=filebot --rename
+
+[Desktop Action organize]
+Name=Organize Files
+Exec=filebot --organize
+
+[Desktop Action subtitles]
+Name=Fetch Subtitles
+Exec=filebot --subtitles
