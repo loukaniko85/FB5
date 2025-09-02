@@ -1,0 +1,102 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'org.openjfx.javafxplugin' version '0.1.0'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id 'org.beryx.runtime' version '1.12.7'
+}
+
+group = 'net.filebot'
+version = '4.9.0'
+sourceCompatibility = '17'
+targetCompatibility = '17'
+
+repositories {
+    mavenCentral()
+    maven { url 'https://oss.sonatype.org/content/repositories/snapshots/' }
+}
+
+dependencies {
+    // Core dependencies
+    implementation 'org.slf4j:slf4j-api:2.0.9'
+    implementation 'ch.qos.logback:logback-classic:1.4.11'
+    
+    // Modern caching - replace EhCache with Caffeine
+    implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
+    
+    // JSON processing - faster than XML
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
+    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.15.2'
+    
+    // HTTP client - modern replacement for URL connections
+    implementation 'com.squareup.okhttp3:okhttp:4.11.0'
+    
+    // Command line parsing
+    implementation 'info.picocli:picocli:4.7.5'
+    
+    // File operations
+    implementation 'commons-io:commons-io:2.11.0'
+    
+    // Media info
+    implementation 'net.sf.sevenzipjbinding:sevenzipjbinding:16.02-2.01'
+    
+    // Test dependencies
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
+    testImplementation 'org.mockito:mockito-core:5.7.0'
+}
+
+javafx {
+    version = '17.0.2'
+    modules = ['javafx.controls', 'javafx.fxml', 'javafx.web']
+}
+
+application {
+    mainClass = 'net.filebot.Main'
+}
+
+shadowJar {
+    archiveClassifier = 'fat'
+    mergeServiceFiles()
+}
+
+runtime {
+    options = ['--strip-debug', '--compress', '2', '--no-header-files', '--no-man-pages']
+    targetPlatform('linux-x64') {
+        jdkHome = jdkDownload("17.0.2+8-86")
+    }
+}
+
+jar {
+    manifest {
+        attributes(
+            'Main-Class': 'net.filebot.Main',
+            'Implementation-Title': 'FileBot',
+            'Implementation-Version': version,
+            'Implementation-Vendor': 'Point Planck Limited'
+        )
+    }
+}
+
+test {
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+}
+
+// Performance optimization tasks
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+    options.compilerArgs += [
+        '--enable-preview',
+        '-Xlint:unchecked',
+        '-Xlint:deprecation'
+    ]
+}
+
+// Custom task for performance testing
+task performanceTest(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'net.filebot.PerformanceTest'
+    dependsOn compileJava
+}
